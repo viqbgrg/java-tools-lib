@@ -12,9 +12,7 @@ import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
 import java.io.IOException;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 public class AlistDownload {
     private static final String URL = "https://al.chirmyram.com/api/public/path";
@@ -23,16 +21,19 @@ public class AlistDownload {
 
     private static final String LOCAL_PATH = "C:\\Users\\hhj\\Desktop\\1111";
 
-    private static final ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(5);
+    private static final ArrayBlockingQueue<Runnable> QUEUE = new ArrayBlockingQueue<>(5);
+    private static final ThreadPoolExecutor EXECUTOR_SERVICE = new ThreadPoolExecutor(2, 6,
+            0L, TimeUnit.MILLISECONDS,
+            QUEUE);
 
-    private static final ArrayBlockingQueue<String> QUEUE = new ArrayBlockingQueue<>(7);
 
-    public static void main(String[] args) throws JsonProcessingException {
+    public static void main(String[] args) throws JsonProcessingException, InterruptedException {
+        EXECUTOR_SERVICE.prestartAllCoreThreads();
         url("/rep/Doc/欧路词典库");
         EXECUTOR_SERVICE.shutdown();
     }
 
-    private static void url(String path) throws JsonProcessingException {
+    private static void url(String path) throws JsonProcessingException, InterruptedException {
         JsonNode jsonNode = requestPath(path);
         JsonNode jsonNode1 = jsonNode.at("/data/files");
         if (jsonNode1 instanceof ArrayNode arrayNode) {
@@ -41,29 +42,32 @@ public class AlistDownload {
                 if (anInt == 1) {
                     url(path + "/" + node.get("name").asText());
                 } else {
-                    downloadThread(LOCAL_PATH + "/" + path + "/" + node.get("name").asText(), node.get("url").asText());
+                    QUEUE.put(() -> {
+                        try {
+                            DownloadHelper.download(node.get("url").asText(), LOCAL_PATH + "/" + path + "/" + node.get("name").asText());
+                        } catch (IOException e) {
+                            try {
+                                url(path);
+                            } catch (JsonProcessingException ex) {
+                                throw new RuntimeException(ex);
+                            } catch (InterruptedException ex) {
+                                throw new RuntimeException(ex);
+                            }
+                            throw new RuntimeException(e);
+                        }
+                    });
                 }
             }
         }
     }
 
-    public static void downloadThread(String path, String url) {
-        EXECUTOR_SERVICE.submit(() -> {
-            try {
-                DownloadHelper.download(url, path);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
 
     public static JsonNode requestPath(String path) throws JsonProcessingException {
         CloseableHttpClient httpclient = HttpClients.createDefault();
-        ObjectMapper objectMapper = new ObjectMapper();
         HttpPost httpPost = new HttpPost(URL);
         httpPost.addHeader("Content-Type", "application/json;charset=UTF-8");
         Path pathObject = new Path("", path);
-        String pathJson = objectMapper.writeValueAsString(pathObject);
+        String pathJson = OBJECT_MAPPER.writeValueAsString(pathObject);
         // 解决中文乱码问题
         StringEntity stringEntity = new StringEntity(pathJson, ContentType.APPLICATION_JSON);
         httpPost.setEntity(stringEntity);
@@ -71,12 +75,16 @@ public class AlistDownload {
         try {
             jsonNode = httpclient.execute(httpPost, response -> {
                 if (response.getCode() != 200) {
-                    requestPath(path);
+                    return requestPath(path);
                 }
                 String responseBody = EntityUtils.toString(response.getEntity());
                 System.out.println("----------------------------------------");
                 System.out.println(responseBody);
-                return objectMapper.readTree(responseBody);
+                JsonNode jsonNode1 = OBJECT_MAPPER.readTree(responseBody);
+                if (jsonNode1.get("code").asInt() != 200) {
+                    return requestPath(path);
+                }
+                return jsonNode1;
             });
         } catch (IOException e) {
             throw new RuntimeException(e);

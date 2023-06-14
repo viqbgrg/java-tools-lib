@@ -9,7 +9,7 @@ import java.net.URL;
 
 public class DownloadHelper {
     public static void download(String url, String path) throws IOException {
-        System.out.println("下载中...");
+        System.out.println("下载中..." + path);
         InputStream inputStream = null;
         RandomAccessFile randomAccessFile = null;
         try {
@@ -50,7 +50,8 @@ public class DownloadHelper {
                 inputStream.close();
                 System.out.println("下载完成...");
             } else {
-                System.out.println("服务器异常...");
+                System.out.println("服务器异常..." + path);
+                throw new RuntimeException();
             }
         } finally {
             if (null != inputStream) {
