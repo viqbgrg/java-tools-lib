@@ -22,7 +22,7 @@ public class AlistDownload {
     private static final String LOCAL_PATH = "C:\\Users\\hhj\\Desktop\\1111";
 
     private static final ArrayBlockingQueue<Runnable> QUEUE = new ArrayBlockingQueue<>(5);
-    private static final ThreadPoolExecutor EXECUTOR_SERVICE = new ThreadPoolExecutor(2, 6,
+    private static final ThreadPoolExecutor EXECUTOR_SERVICE = new ThreadPoolExecutor(7, 7,
             0L, TimeUnit.MILLISECONDS,
             QUEUE);
 
@@ -46,16 +46,11 @@ public class AlistDownload {
                         try {
                             DownloadHelper.download(node.get("url").asText(), LOCAL_PATH + "/" + path + "/" + node.get("name").asText());
                         } catch (IOException e) {
-                            try {
-                                url(path);
-                            } catch (JsonProcessingException ex) {
-                                throw new RuntimeException(ex);
-                            } catch (InterruptedException ex) {
-                                throw new RuntimeException(ex);
-                            }
+                            System.out.println("失败:" + path);
                             throw new RuntimeException(e);
                         }
                     });
+                    System.out.println("QUEUE: " + QUEUE.size());
                 }
             }
         }

@@ -44,14 +44,13 @@ public class DownloadHelper {
                     int temp = progres / unit; //计算当前百分比进度
                     if (temp >= 1 && temp > unitProgress) {//如果下载过程出现百分比变化
                         unitProgress = temp;//保存当前百分比
-                        System.out.println("正在下载中..." + unitProgress + "%");
+                        System.out.println("正在下载中..." + unitProgress + "%: " + path);
                     }
                 }
                 inputStream.close();
                 System.out.println("下载完成...");
             } else {
                 System.out.println("服务器异常..." + path);
-                throw new RuntimeException();
             }
         } finally {
             if (null != inputStream) {
