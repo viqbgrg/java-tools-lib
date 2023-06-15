@@ -19,8 +19,7 @@ public class DownloadHelper {
             File file = new File(path);
             //文件夹是否存在
             if (!file.getParentFile().exists()) file.getParentFile().mkdirs();
-            if (file.exists()) file.delete();
-            file.createNewFile();
+
 
             int responseCode = urlConnection.getResponseCode();
             if (responseCode >= 200 && responseCode < 300) {
@@ -31,6 +30,13 @@ public class DownloadHelper {
                 int progres = 0;
                 //获取文件长度
                 int maxProgres = urlConnection.getContentLength();
+                if (file.exists()) {
+                    if (file.length() == maxProgres) {
+                        return;
+                    }
+                    file.delete();
+                    file.createNewFile();
+                }
                 randomAccessFile = new RandomAccessFile(file, "rwd");
                 //设置文件大小
                 randomAccessFile.setLength(maxProgres);
